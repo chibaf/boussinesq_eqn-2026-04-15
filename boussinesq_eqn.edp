@@ -1,0 +1,65 @@
+// Paramètres du maillage
+int Nx = 30, Ny = 30;
+mesh Th = square(Nx, Ny); // Maillage du carré [0,1]x[0,1]
+int a=1;
+int K=1;
+int mu=1;
+int D=1;
+
+// Espaces d'éléments finis (P1)
+fespace Vh(Th, P1);
+Vh p, Q;       // P = pression (solution), Q = fonction test
+Vh T, phi;     // T = température (solution), phi = fonction test
+Vh vx, vy;     // vx, vy = composantes de la vitesse
+Vh Told;       // Témoin de l'ancienne température
+real tol = 1e-6;
+int maxIter = 50;
+T = 0;            // Condition initiale pour T (hors bords)
+Told = T;         // Témoin de l'ancienne itération
+
+
+
+for(int iter = 1; iter <= maxIter; iter++) {
+    // 1) Résoudre l'équation de pression pour P (T connu)
+    solve Pressure(p, Q)
+        = int2d(Th)( dx(p)*dx(Q) + dy(p)*dy(Q) )
+        - int2d(Th)( -a * dy(T) * Q )
+        + on(1, p=0);
+
+
+    // 2) Calculer la vitesse de Darcy v = (vx,vy)
+    vx = (K/mu) * dx(p);
+    vy = (K/mu) * (dy(p) + a*T);
+
+
+    // 3) Résoudre l'équation de la chaleur pour T (v connu)
+    solve Temperature(T, phi)
+        = int2d(Th)(
+              D*( dx(T)*dx(phi) + dy(T)*dy(phi) )
+            + ( vx*dx(T) + vy*dy(T) )*phi 
+          )
+        + on(1,2,3, T=0)
+        + on(4, T=1);
+
+
+    // 4) Critère d'arrêt sur la différence ||T - Told||
+    real err = sqrt(int2d(Th)((T-Told)^2));
+	cout << "Iteration: " << iter << ", Error = " << err << endl;
+    //cout << "Itération " << iter <<" ;" << "erreur = " << err << endl;
+	//cout << "time = " << t+dt << " iter = " << iter << " residu = " << res << " L2 error = " << L2err << endl;
+	
+	if (err < tol) {
+    break;
+    }
+    Told = T;
+	
+}
+
+
+// Affichage de la pression
+plot(p,cmm="Champ de pression P", wait=1);
+// Affichage de la température
+plot(T, cmm="Champ de temparature T",wait=1);
+// Affichage du champ de vitesse (vecteurs)
+plot([vx, vy], cmm="Champ de vitesse v", wait=1);
+
