@@ -2,9 +2,7 @@
 boussinesq_eqn
 
 gradient in the cylindrical coordinates  
-$$
-{\rm grad} \varphi = \frac{\partial \varphi}{\partial r}e_r+\frac{1}{r}\frac{\partial \varphi}{\partial \theta}e_\theta+\frac{\partial \varphi}{\partial z}e_z
-$$
+$${\rm grad} \varphi = \frac{\partial \varphi}{\partial r}e_r+\frac{1}{r}\frac{\partial \varphi}{\partial \theta}e_\theta+\frac{\partial \varphi}{\partial z}e_z$$
 
 
 ## ref
