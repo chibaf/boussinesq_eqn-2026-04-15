@@ -19,6 +19,15 @@ $${\rm rot} X = \left(\frac{1}{r}\frac{\partial Z}{\partial \theta}-\frac{\parti
 \left(\frac{\partial R}{\partial z}-\frac{\partial Z}{\partial r}\right)e_\theta+
 \left(\frac{1}{r}\frac{\partial}{\partial r}(r\Theta)-\frac{1}{r}\frac{\partial R}{\partial \theta}\right)e_z$$
 
+Navier-Stokes equation: axisymmetric flow with the assumption of no tangential velocity  
+$$\begin{eqnarray}
+\begin{array}{cll}
+\displaystyle \rho\left(\frac{\partial u_r}{\partial t}+u_r\frac{\partial u_r}{\partial r}+u_z\frac{\partial u_r}{\partial z}\right) &=& \displaystyle -\frac{\partial p}{\partial r}+\mu\left[\frac{1}{r}\frac{\partial}{\partial r}\left(r\frac{\partial u_r}{\partial r}\right)+\frac{\partial^2 u_r}{\partial z^2}-\frac{u_r}{r^2}\right]+\rho g_r \\
+\displaystyle \rho\left(\frac{\partial u_z}{\partial t}+u_r\frac{\partial u_z}{\partial r}+u_z\frac{\partial u_z}{\partial z}\right) &=& \displaystyle -\frac{\partial p}{\partial z}+\mu\left[\frac{1}{r}\frac{\partial}{\partial r}\left(r\frac{\partial u_z}{\partial r}\right)+\frac{\partial^2 u_z}{\partial z^2}\right]+\rho g_z \\
+\displaystyle \frac{1}{r}\frac{\partial}{\partial r}(r u_r)+\frac{\partial u_z}{\partial z}&=&0
+\end{array} \nonumber
+\end{eqnarray}$$
+
 
 ## ref
 Coupling three equations for a homogenization problem with the Boussinesq approximation  
