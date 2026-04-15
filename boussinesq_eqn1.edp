@@ -1,0 +1,160 @@
+// FLiNaK_Q4n_1a_gemini_260306.edp
+// FLiNaK溶融塩炉 - 実物理単位系による軸対称熱流体シミュレーション
+
+bool debug = true;
+
+// --- 1. 幾何形状パラメータ [m] ---
+real w = 0.25;// 容器半径
+real H = 0.8;// 容器高さ
+real S = 0.1;// 内部構造物下端
+real H1 = 0.6;// 内部構造物高さ
+real d = 0.15;// 内部構造物内径
+real w1 = 0.03;// 内部構造物厚み
+real ch = 0.04;// 面取り
+real rpipe = 0.02;// 中心軸回避用パイプ半径
+real d2=0.025; // frozen wall
+
+// --- 2. 境界定義 ---
+border C1(t=rpipe, w-d2) {x=t; y=d2; label=1;}
+border C2(t=d2, H){x=w-d2; y=t; label=2;}
+//border Chamfer(t=0,1){x=w - t*ch; y=H-ch + t*ch; label=2;}
+border C3(t=w-d2,rpipe){x=t; y=H; label=3;}
+border Cpipe(t=H,d2){x=rpipe; y=t; label=12;}
+
+border D1(t=0, w1) {x=d+t; y=S; label=20;}
+border D2(t=S, S+H1) {x=d+w1; y=t; label=20;}
+border D3(t=0, pi)    {x=d+w1/2.0 + (w1/2.0)*cos(t); 
+                       y=S+H1 + (w1/2.0)*sin(t); label=20;}
+border D4(t=S+H1, S)  {x=d; y=t; label=20;}
+
+border E1(t=d2,0){x=rpipe;y=t;label=30;}
+border E2(t=rpipe,w){x=t;y=0;label=30;}
+border E3(t=0,H){x=w;y=t;label=30;}
+border E4(t=w,w-d2){x=t;y=H;label=30;}
+
+// --- 3. メッシュ生成 ---
+//mesh Th = buildmesh(C1(20) + C2(80) + C3(20) + Cpipe(80)+ D1(-20) + D2(-60) + D3(-40) + D4(-60)); //+
+//E1(10)+E2(30)+E3(40)+E4(10)//+E5(80)+E6(20)
+mesh Th = buildmesh(C1(20) + C2(80) + C3(20) + Cpipe(80)+ D1(10) + D2(40) + D3(10) + D4(40)+
+E1(20)+E2(30)+E3(80)+E4(20)//+E5(80)+E6(20)
+);
+                    
+plot(Th,wait=1);
+
+// --- 4. 領域(Region)の自動取得 ---
+int regMain   = Th(rpipe + 0.01, H/2.0).region;       
+int regShroud = Th(d + w1/2.0, S + H1/2.0).region;   
+int regEdgeE  = Th(w - d2/2.0, d2/2.0).region;       
+
+
+// --- 4. 有限要素空間の定義 ---
+fespace Ph(Th, P0);
+fespace Vh(Th, P2), Qh(Th, P1);
+
+Vh u=0, v=0, uu, vv, up, vp;
+Qh p=0, pp;
+//Vh u, v;
+Ph kappa, fQ, field;
+
+// --- 5. 物理定数（SI単位系：FLiNaK） ---
+real kelvin = 273.15;
+real Tref = 500.0 + kelvin;   //基準温度
+real low = Tref;             //冷却壁温度
+
+real rho = 2.02e3;            //密度 [kg/m^3]
+real mu = 2.9e-3;             //粘性係数 [Pa・s]
+real nu = mu / rho;           //動粘性係数 [m^2/s]
+real Cp = 1.883e3;            //比熱容量 [J/kg/K]
+//real kappa = 0.92;            //熱伝導率 [W/m/K]
+real rhoCp = rho * Cp;
+real beta = 3./10000;          //体積膨張係数 [1/K]
+real g = 9.81;                //重力加速度 [m/s^2] (本来の値)
+real geff = 0.1;              //計算安定化のための有効重力（徐々にgに近づける）
+
+// 熱源設定
+real Qpower = 50.0;         //出力密度 [W/m^3] (例：50kW/m3)
+real Q0 = Qpower / rhoCp;     //温度上昇率 [K/s]
+real Vpump = 0.1;           //強制流速 [m/s]
+real kFluid = 0.92, kShroud = 0.92;
+real kEdgeE = kFluid * 0.9; 
+real hOuter = 33.7e3, TExt = 500.0;
+
+int a=1;
+int K=1;
+//int mu=1;
+int D=1;
+
+// Espaces d'éléments finis (P1)
+fespace Wh(Th, P1);
+Wh Q;       // P = pression (solution), Q = fonction test
+Wh T, phi;     // T = température (solution), phi = fonction test
+Wh vx, vy;     // vx, vy = composantes de la vitesse
+Wh Told;       // Témoin de l'ancienne température
+real tol = 1e-6;
+int maxIter = 50;
+T = 0;            // Condition initiale pour T (hors bords)
+Told = T;         // Témoin de l'ancienne itération
+
+// Set property distributions
+kappa = (region == regShroud) ? kShroud : kFluid;
+fQ = ( (x >= rpipe && x < d) && (y >= S && y <= S+H1) ) ? Qpower : 0.0;
+
+// 熱源・ポンプ関数の定義
+//Qh fQ = ( (x >= rpipe && x < d) && (y >= S && y <= S+H1) ) ? Q0 : 0.0;
+Ph fP = ( (x >= rpipe && x < d) && (y >= S && y <= S+S*0.1) ) ? Vpump : 0.0;
+
+// --- 6. 時間積分パラメータ ---
+real Time = 1000.0;               //総計算時間
+real dt = 0.1;               //時間刻み
+int n = 0;
+
+Qh r = Tref, rr, rp;         //温度場
+
+
+// --- 7. メインループ ---
+for(int iter = 1; iter <= maxIter; iter++) {
+    // 1) Résoudre l'équation de pression pour P (T connu)
+    solve Pressure(p, Q)
+        = int2d(Th)( dx(p)*dx(Q) + dy(p)*dy(Q) )
+        - int2d(Th)( -a * dy(T) * Q );
+//        + on(1, p=0);
+
+
+    // 2) Calculer la vitesse de Darcy v = (vx,vy)
+    vx = 0.001*(K/mu) * dx(p);
+    vy = 0.001*(K/mu) * (dy(p) + a*T);
+
+
+    // 3) Résoudre l'équation de la chaleur pour T (v connu)
+    solve Temperature(T, phi)
+        = int2d(Th)(
+              D*( dx(T)*dx(phi) + dy(T)*dy(phi) )
+            + ( vx*dx(T) + vy*dy(T) )*phi 
+          )
+        + on(1,2,3, T=Tref)
+        + on(30, T=1);
+
+
+    // 4) Critère d'arrêt sur la différence ||T - Told||
+    real err = sqrt(int2d(Th)((T-Told)^2));
+	cout << "Iteration: " << iter << ", Error = " << err << endl;
+    //cout << "Itération " << iter <<" ;" << "erreur = " << err << endl;
+	//cout << "time = " << t+dt << " iter = " << iter << " residu = " << res << " L2 error = " << L2err << endl;
+	
+	if (err < tol) {
+    break;
+    }
+    Told = T;
+	}
+
+
+//     --- 可視化 ---
+// --- 事前にループの外（あるいはifの中）でレベルを定義 ---
+    Vh TempC = T - kelvin;  //表示は摂氏で
+//        plot(TempC, fill=true, value=true, nbiso=30, 
+//             cmm="Temp [C] (Time = "+t+"s, Shroud: K=0.5, Cp=2.5k)", wait=false, WindowIndex=0);
+        plot(TempC, fill=0,  value=1, nbiso=30,wait=1, WindowIndex=0);
+        plot([vx,vy], value=true, coef=0.00001, wait=1, WindowIndex=1);
+//        plot([vx,vy], value=true,wait=true, WindowIndex=1);
+//        plot([ux,vx], value=true, fill=true, coef=0.005,wait=true, WindowIndex=1);
+    
