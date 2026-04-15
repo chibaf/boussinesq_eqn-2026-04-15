@@ -11,6 +11,13 @@ a vector field X in the cylindrical coordinates
 $$X=(\xi,\eta,\zeta)=R e_r+\Theta e_\theta+Z e_z$$  
 $$R=\xi\cos\theta+\eta\sin\theta,\Theta=-\xi\sin\theta+\eta\cos\theta,Z=\zeta$$
 
+divergence in the cylindrical coordinates  
+$${\rm div} X = \frac{1}{r}\frac{\partial}{\partial r}\left(r R\right)+\frac{1}{r}\frac{\partial \Theta}{\partial \theta}+\frac{\partial Z}{\partial z}$$
+
+rotation in the cylindrical coordinates  
+$${\rm rot} X = \left(\frac{1}{r}\frac{\partial Z}{\partial \theta}-\frac{\partial \Theta}{\partial z}\right)e_r+
+\left(\frac{\partial R}{\partial z}-\frac{\partial Z}{\partial r}\right)e_\theta+
+\left(\frac{1}{r}\frac{\partial}{\partial r}(r\Theta)-\frac{1}{r}\frac{\partial R}{\partial \theta}\right)e_z$$
 
 
 ## ref
