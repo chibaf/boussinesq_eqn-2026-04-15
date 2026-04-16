@@ -22,6 +22,10 @@ $${\rm rot} X = \left(\frac{1}{r}\frac{\partial Z}{\partial \theta}-\frac{\parti
 Navier-Stokes equation: axisymmetric flow with the assumption of no tangential velocity  
 <img width="1664" height="340" alt="image" src="https://github.com/user-attachments/assets/443ac9dd-c4ee-44e4-8150-406db0cea5d8" />
 
+boussinesq equations, #physics, #math, #hydrodynamics  
+<img width="988" height="264" alt="image" src="https://github.com/user-attachments/assets/1e52cce6-e9cf-4e31-b3f2-98a1c7749a3c" />
+
+
 ## ref
 Coupling three equations for a homogenization problem with the Boussinesq approximation  
 https://community.freefem.org/t/coupling-three-equations-for-a-homogenization-problem-with-the-boussinesq-approximation/3936
