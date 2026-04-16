@@ -1,0 +1,102 @@
+//Boussinesq system
+// Parameters
+real Pr = 0.7;
+real Ra = 1000;
+//real gamma = 100; // penalty parameter
+real eps = 1e-5;
+
+// Mesh
+mesh Th = square(33, 33); // Labels: bottom=1, right=2, top=3, left=4
+//plot(Th, wait=true);
+
+// Fespace
+fespace Xh(Th, P2);//velocity
+Xh u1, u2, v1, v2, du1, du2;
+fespace Zh(Th, P1);//pressure/Users/chibaf/Downloads/boussinesq.edp
+Zh p,pp,dp;
+
+fespace Mh(Th, P1);//temperature
+Mh T, q, dT;
+
+// Stream Function Space
+fespace Ph(Th, P2); 
+Ph psi, phi;
+
+// Macros
+macro Grad(u1, u2) [dx(u1), dy(u1), dx(u2), dy(u2)] //
+macro UgradV(u1, u2, v1, v2) [[u1, u2]'*[dx(v1), dy(v1)], [u1, u2]'*[dx(v2), dy(v2)]] //
+macro div(u1, u2) (dx(u1) + dy(u2)) //
+macro DivInner(u1, u2, v1, v2) ((dx(u1) + dy(u2)) * (dx(v1) + dy(v2))) //
+macro Graddotgrad(T, q) (dx(q) * dx(T) + dy(q) * dy(T)) //
+macro Advect(u1, u2, T) (u1 * dx(T) + u2 * dy(T)) //
+
+// Initialization
+u1 = 0;
+u2 = 0;
+p = 0;
+T = 0;
+
+// Viscosity loop
+//while (1) {
+    int n;
+    real err = 0;
+
+    // Newton loop
+    for (n = 0; n < 15; n++) {
+        // Solve velocity and temperature together
+        solve VelocityTemperature ([du1, du2, dp, dT], [v1, v2, pp, q])
+            = int2d(Th)(
+                Pr * (Grad(du1, du2)' * Grad(v1, v2))
+                + UgradV(du1, du2, u1, u2)' * [v1, v2]
+                + UgradV(u1, u2, du1, du2)' * [v1, v2]
+              //  + gamma * DivInner(du1, du2, v1, v2) // divergence penalty
+                - dp*(dx(v1)+dy(v2)) - pp*(dx(du1)+dy(du2)) -1.e-10*dp*pp
+                - Ra * Pr * dT * v2
+              )
+              -int2d(Th)(
+                + Pr * (Grad(u1, u2)' * Grad(v1, v2))
+                + UgradV(u1, u2, u1, u2)' * [v1, v2]
+             //   + gamma * DivInner(u1, u2, v1, v2) // divergence penalty
+                - p*(dx(v1)+dy(v2)) - pp*(dx(u1)+dy(u2)) -1.e-10*p*pp
+                - Ra * Pr * T * v2
+              )
+            + on(1,2,3,4, du1=u1, du2=u2)
+            + int2d(Th)(Advect(du1, du2, T) * q
+                        + Advect(u1, u2, dT) * q
+                        + Graddotgrad(dT, q)
+            )
+            - int2d(Th)(
+                Advect(u1, u2, T) * q
+                + Graddotgrad(T, q)
+            )
+            + on(1, dT = T-1) // Hot bottom wall
+            + on(3, dT = T); // Cold top wall
+
+        // Update fields
+        u1[] -= du1[];
+        u2[] -= du2[];
+        p[] -= dp[];
+        T[] -= dT[];
+
+        // Compute error with safeguard
+        real Lu1 = max(1e-10, u1[].linfty);
+        real Lu2 = max(1e-10, u2[].linfty);
+        real LT = max(1e-10, T[].linfty);
+        err = du1[].linfty / Lu1 + du2[].linfty / Lu2 + dT[].linfty / LT;
+
+        // Stop if convergence is reached
+        if (err < eps) break;
+    }
+
+    // Check convergence
+    if (err < eps) {
+        cout << "Converged after " << n+1 << " Newton iterations.\n" << endl;;
+        //break;
+        }
+    else cout << "No convergence" << endl;
+//}
+
+plot(T,wait=1,fill=1,value=1,cmm="temperature");
+//plot([u1,u2],wait=1,fill=1,value=1,cmm="velocity");
+plot([u1,u2], value=true, fill=true, coef=20000,wait=1);
+plot(p,wait=1,fill=1,value=1,cmm="pressure");
